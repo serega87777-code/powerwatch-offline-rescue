@@ -1,3 +1,5 @@
+![banner](banner.svg)
+
 # MATRIX PowerWatch X Offline Rescue Notes
 
 Community notes for restoring basic local operation of legacy MATRIX PowerWatch / PowerWatch X devices after the official cloud services were retired.
