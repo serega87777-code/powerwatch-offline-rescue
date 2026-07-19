@@ -1,0 +1,32 @@
+# Generated Android/Gradle files
+.gradle/
+build/
+**/build/
+local.properties
+
+# Local toolchains / downloaded SDKs
+.tools/
+android-sdk/
+gradle-*/
+
+# APKs and binary release artifacts: do not commit by default
+*.apk
+*.aab
+*.jar
+*.keystore
+*.jks
+
+# Decompiled/proprietary material: keep out of the public repo
+apktool*/
+jadx*/
+smali*/
+*.dex
+*.arsc
+*.pdf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.iml
+.idea/
+.vscode/

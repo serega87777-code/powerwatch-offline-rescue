@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MATRIX PowerWatch X Offline Rescue Notes</title>
+<style>
+:root{--bg:#0b1020;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--line:#334155;--green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--code:#020617}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#1e293b,#0b1020 48%,#020617);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.wrap{max-width:1080px;margin:0 auto;padding:32px 18px 70px}.hero,.card{border:1px solid var(--line);background:rgba(17,24,39,.86);border-radius:22px;box-shadow:0 16px 60px rgba(0,0,0,.28)}.hero{padding:34px}.badge{display:inline-block;border:1px solid #14532d;background:#052e16;color:#86efac;border-radius:999px;padding:6px 12px;font-weight:800}.hero h1{font-size:clamp(31px,5vw,54px);line-height:1.04;margin:18px 0 10px}.hero p{max-width:820px;color:#cbd5e1;font-size:19px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:18px}.card{grid-column:span 6;padding:22px}.card.full{grid-column:1/-1}h2{margin:0 0 12px;font-size:24px}pre{overflow:auto;padding:14px;border-radius:14px;background:var(--code);border:1px solid #1e293b;color:#d1fae5}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.ok{color:#86efac}.warn{color:#fcd34d}.danger{color:#fca5a5}.muted{color:var(--muted)}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.print{position:fixed;right:18px;bottom:18px;border:0;border-radius:999px;background:var(--green);color:#052e16;font-weight:900;padding:12px 16px;cursor:pointer}@media(max-width:800px){.card{grid-column:1/-1}.hero{padding:24px}}@media print{body{background:white;color:#111}.hero,.card{background:white;color:#111;box-shadow:none;border-color:#ddd}.muted{color:#555}pre{background:#f6f8fa;color:#111}.print{display:none}}
+</style>
+</head>
+<body>
+<button class="print" onclick="window.print()">PDF / Print</button>
+<div class="wrap">
+<section class="hero">
+<span class="badge">Community repair notes</span>
+<h1>MATRIX PowerWatch X Offline Rescue</h1>
+<p>Privacy-safe public guide for restoring basic local operation of legacy PowerWatch devices after the original cloud services stopped working.</p>
+</section>
+<div class="grid">
+<section class="card full"><h2>Status</h2><p>A BLE rescue flow was confirmed on one PowerWatch X device: the watch accepted local time sync, saved settings, exited the pairing/sync screen, and displayed the normal time screen.</p><p class="warn"><b>Not official.</b> These are community repair/interoperability notes, not a vendor release.</p></section>
+<section class="card"><h2>What is intentionally removed</h2><ul><li>owner name</li><li>local Windows username and paths</li><li>phone model</li><li>private watch MAC address</li><li>private serial number</li></ul></section>
+<section class="card"><h2>What to build publicly</h2><p>Prefer a clean-room BLE utility that scans/selects a watch, writes current time/timezone, saves settings, and exits safely. Avoid redistributing patched proprietary APKs or vendor assets.</p></section>
+<section class="card full"><h2>Core BLE commands</h2><table><thead><tr><th>Command</th><th>Meaning</th></tr></thead><tbody><tr><td><code>840107{UTC}{TZ}</code></td><td>Set UTC time and timezone offset in minutes</td></tr><tr><td><code>84010811223344</code></td><td>Example pair code from legacy notes</td></tr><tr><td><code>8421</code></td><td>Save data to memory</td></tr><tr><td><code>8440</code></td><td>Show sync animation / visible effect probe</td></tr><tr><td><code>8441</code></td><td>Hide sync animation</td></tr><tr><td><code>810F050082</code></td><td>SOFF / normal exit observed in app flow</td></tr></tbody></table></section>
+<section class="card"><h2>Timezone encoding</h2><pre>840107{8 hex digits Unix UTC}{4 hex digits timezone minutes}
+
+UTC+1 = 003C
+UTC+2 = 0078
+UTC+0 = 0000</pre></section>
+<section class="card"><h2>Dangerous commands</h2><p class="danger">Do not send automatically:</p><pre>8422 = Factory Reset / Unpair
+8425 = Enter Shipmode
+8430522C5E08 = Debugger Lock</pre></section>
+<section class="card full"><h2>BLE UUIDs</h2><pre>Service:
+00002760-08c2-11e1-9073-0e8ac72e1011
+
+Notify/TX:
+00002760-08c2-11e1-9073-0e8ac72e0012
+
+Write/RX candidates:
+00002760-08c2-11e1-9073-0e8ac72e0011
+00002760-08c2-11e1-9073-0e8ac72e0013</pre></section>
+<section class="card full"><h2>Success criteria</h2><p>Do not rely only on app-side “pairing success”. Verify the physical watch leaves pairing/sync screens, displays the normal face, shows the expected time, and keeps time after disconnect.</p></section>
+</div>
+</div>
+</body>
+</html>
