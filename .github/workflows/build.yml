@@ -1,10 +1,14 @@
-
 name: Build APK
 on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+    defaults:
+      run:
+        working-directory: OpenPowerWatchSync
     steps:
       - uses: actions/checkout@v4
 
@@ -12,8 +16,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-
-      - uses: android-actions/setup-android@v3
 
       - name: Build APK
         run: |
@@ -24,5 +26,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: OpenPowerWatchSync
-          path: app/build/outputs/apk/debug/*.apk
+          path: '**/build/outputs/apk/debug/*.apk'
           
