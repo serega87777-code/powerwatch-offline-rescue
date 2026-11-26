@@ -90,6 +90,7 @@ public class SyncEngine {
     private String currentMac = "";
     private Runnable watchdog = null;
     private boolean scanning = false;
+    private int serviceRetries = 0;
 
     private SyncEngine(Context c) { this.context = c; }
 
@@ -196,6 +197,7 @@ public class SyncEngine {
     private void startMac(String mac) {
         macDone = false;
         currentMac = mac;
+        serviceRetries = 0;
         closeGatt();
         BluetoothManager bm = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         BluetoothAdapter adapter = bm == null ? null : bm.getAdapter();
@@ -214,6 +216,17 @@ public class SyncEngine {
         } catch (Exception e) {
             failCurrent("connectGatt failed: " + e.getMessage());
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void connectAgain() {
+        BluetoothManager bm = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = bm == null ? null : bm.getAdapter();
+        if (adapter == null || !adapter.isEnabled()) { failCurrent("Bluetooth is off"); return; }
+        BluetoothDevice device;
+        try { device = adapter.getRemoteDevice(currentMac); } catch (IllegalArgumentException e) { failCurrent("Bad MAC " + currentMac); return; }
+        emitLog("Retrying connect " + currentMac + " ...");
+        try { gatt = device.connectGatt(context, false, gattCb); } catch (Exception e) { failCurrent("connectGatt failed: " + e.getMessage()); }
     }
 
     private void failCurrent(String why) {
@@ -269,8 +282,11 @@ public class SyncEngine {
     private final BluetoothGattCallback gattCb = new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                emitLog("Connected. Discovering services...");
-                try { g.discoverServices(); } catch (Exception e) { failCurrent("discoverServices failed"); }
+                emitLog("Connected. Waiting before discovery...");
+                handler.postDelayed(() -> {
+                    if (macDone) return;
+                    try { g.discoverServices(); } catch (Exception e) { failCurrent("discoverServices failed"); }
+                }, 800);
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 if (!macDone) failCurrent("Disconnected, status=" + status);
             }
@@ -279,7 +295,17 @@ public class SyncEngine {
         @Override public void onServicesDiscovered(BluetoothGatt g, int status) {
             if (status != BluetoothGatt.GATT_SUCCESS) { failCurrent("Service discovery failed: " + status); return; }
             BluetoothGattService svc = g.getService(SERVICE_UUID);
-            if (svc == null) { failCurrent("PowerWatch service not found"); return; }
+            if (svc == null) {
+                if (serviceRetries < 1) {
+                    serviceRetries++;
+                    emitLog("PowerWatch service not found — retrying...");
+                    closeGatt();
+                    handler.postDelayed(() -> { if (!macDone) connectAgain(); }, 600);
+                    return;
+                }
+                failCurrent("PowerWatch service not found");
+                return;
+            }
             BluetoothGattCharacteristic notify = svc.getCharacteristic(NOTIFY_UUID);
             writeChar = svc.getCharacteristic(PWX_WRITE_UUID);
             if (writeChar == null) writeChar = svc.getCharacteristic(CLASSIC_WRITE_UUID);
@@ -407,5 +433,5 @@ public class SyncEngine {
         }
         return sb.toString();
     }
-}
-
+    }
+        
