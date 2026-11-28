@@ -35,7 +35,9 @@ public class AutoSyncWorker extends Worker {
 
     private static final String WORK_NAME = "powerwatch-autosync";
     private static final String SUN_WORK_NAME = "powerwatch-sunsync";
-    private static final long FALLBACK_HOURS = 12;
+
+    /** Флаг успеха последнего синка (для вибрации). */
+    private boolean lastOk;
 
     public AutoSyncWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -52,11 +54,12 @@ public class AutoSyncWorker extends Worker {
             // на ближайший восход или закат. Цепочка замыкается сама.
             scheduleNextSunSync(getApplicationContext());
         }
-        buzz(getApplicationContext(), r == Result.success());
+        buzz(getApplicationContext(), lastOk);
         return r;
     }
 
     private Result syncAll() {
+        lastOk = false;
         Context app = getApplicationContext();
         BluetoothManager bm = (BluetoothManager) app.getSystemService(Context.BLUETOOTH_SERVICE);
         if (bm == null || bm.getAdapter() == null || !bm.getAdapter().isEnabled()) return Result.retry();
@@ -91,6 +94,7 @@ public class AutoSyncWorker extends Worker {
             Thread.currentThread().interrupt();
             return Result.retry();
         }
+        lastOk = anyOk[0];
         return anyOk[0] ? Result.success() : Result.retry();
     }
 
