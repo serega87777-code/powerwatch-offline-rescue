@@ -132,6 +132,15 @@ public class MainActivity extends Activity {
         });
         root.addView(autoBox);
 
+        CheckBox buzzBox = new CheckBox(this);
+        buzzBox.setText("Вибрация при автосинке (телефон)");
+        buzzBox.setChecked(getPrefs().getBoolean("vibrate_on_sync", true));
+        buzzBox.setOnCheckedChangeListener((b, on) -> {
+            getPrefs().edit().putBoolean("vibrate_on_sync", on).apply();
+            log(on ? "Вибрация при автосинке включена" : "Вибрация при автосинке выключена");
+        });
+        root.addView(buzzBox);
+
         status = new TextView(this);
         status.setTextSize(18);
         root.addView(status);
