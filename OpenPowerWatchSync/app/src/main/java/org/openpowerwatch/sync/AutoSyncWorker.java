@@ -8,8 +8,8 @@ import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.work.BackoffPolicy;
-import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
@@ -22,11 +22,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Background auto-sync: runs every N hours, syncs all saved watches.
+ * Background auto-sync.
+ * Режим: синк на ближайший восход/закат (по SunTimes),
+ * плюс страховочный периодический синк раз в 12 часов.
  */
 public class AutoSyncWorker extends Worker {
 
     private static final String WORK_NAME = "powerwatch-autosync";
+    private static final String SUN_WORK_NAME = "powerwatch-sunsync";
+    private static final long FALLBACK_HOURS = 12;
 
     public AutoSyncWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -35,6 +39,16 @@ public class AutoSyncWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        try {
+            return syncAll();
+        } finally {
+            // В любом случае (успех, ошибка, ретрай) — планируем следующий синк
+            // на ближайший восход или закат. Цепочка замыкается сама.
+            scheduleNextSunSync(getApplicationContext());
+        }
+    }
+
+    private Result syncAll() {
         Context app = getApplicationContext();
         BluetoothManager bm = (BluetoothManager) app.getSystemService(Context.BLUETOOTH_SERVICE);
         if (bm == null || bm.getAdapter() == null || !bm.getAdapter().isEnabled()) return Result.retry();
@@ -72,11 +86,25 @@ public class AutoSyncWorker extends Worker {
         return anyOk[0] ? Result.success() : Result.retry();
     }
 
+    /** Ставит одноразовый синк на ближайший восход или закат. */
+    public static void scheduleNextSunSync(Context context) {
+        long now = System.currentTimeMillis();
+        long next = SunTimes.nextEvent(now);
+        if (next == -1) return;
+        OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(AutoSyncWorker.class)
+                .setInitialDelay(next - now, TimeUnit.MILLISECONDS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
+                .build();
+        WorkManager.getInstance(context).enqueueUniqueWork(SUN_WORK_NAME, ExistingWorkPolicy.REPLACE, request);
+    }
+
+    /** Страховка: периодический синк + ближайший солнечный. */
     public static void schedule(Context context, long intervalHours) {
         PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(AutoSyncWorker.class, intervalHours, TimeUnit.HOURS)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
                 .build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request);
+        scheduleNextSunSync(context);
     }
 
     public static void runOnceNow(Context context) {
@@ -86,6 +114,6 @@ public class AutoSyncWorker extends Worker {
 
     public static void cancel(Context context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME);
+        WorkManager.getInstance(context).cancelUniqueWork(SUN_WORK_NAME);
     }
-  }
-
+}
