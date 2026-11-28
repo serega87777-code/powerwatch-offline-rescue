@@ -35,7 +35,7 @@ public class MainActivity extends Activity {
         @Override public void onStatus(String s) { setStatus(s); }
         @Override public void onLog(String s) { log(s); }
         @Override public void onSyncResult(boolean anyOk) {
-            log("Result: " + (anyOk ? "OK" : "FAILED"));
+            log("Результат: " + (anyOk ? "ОК" : "ОШИБКА"));
         }
         @Override public void onScanFinished(Map<String, BluetoothDevice> found) {
             showDeviceChooser(found);
@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         engine.setListener(engineListener);
         buildUi();
         requestNeededPermissions();
-        setStatus("Ready");
+        setStatus("Готово");
         if (getPrefs().getBoolean("autosync", false)) {
             AutoSyncWorker.schedule(this, 12);
         }
@@ -66,24 +66,24 @@ public class MainActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("Open PowerWatch Sync");
+        title.setText("Синк PowerWatch");
         title.setTextSize(24);
         title.setTypeface(null, 1);
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Clean-room BLE time sync utility. No cloud, no vendor assets.");
+        sub.setText("Офлайн-синхронизация времени по BLE. Без облака и файлов производителя.");
         root.addView(sub);
 
         macInput = new EditText(this);
-        macInput.setHint("Optional MAC address (AA:BB:CC:DD:EE:FF)");
+        macInput.setHint("MAC-адрес (необязательно, AA:BB:CC:DD:EE:FF)");
         macInput.setSingleLine(true);
         macInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
         macInput.setText(getPrefs().getString("last_mac", ""));
         root.addView(macInput);
 
         Button scanButton = new Button(this);
-        scanButton.setText("Scan / choose watch");
+        scanButton.setText("Сканировать / выбрать часы");
         scanButton.setOnClickListener(v -> {
             if (!hasPermissions()) { requestNeededPermissions(); return; }
             engine.startScan(8000);
@@ -91,43 +91,43 @@ public class MainActivity extends Activity {
         root.addView(scanButton);
 
         Button syncButton = new Button(this);
-        syncButton.setText("Sync time now");
+        syncButton.setText("Синхронизировать время");
         syncButton.setOnClickListener(v -> syncNow());
         root.addView(syncButton);
 
         Button syncAllButton = new Button(this);
-        syncAllButton.setText("Sync ALL saved watches");
+        syncAllButton.setText("Синхронизировать все часы");
         syncAllButton.setOnClickListener(v -> syncAll());
         root.addView(syncAllButton);
 
         Button testAutoButton = new Button(this);
-        testAutoButton.setText("Test auto-sync now");
+        testAutoButton.setText("Тест автосинка сейчас");
         testAutoButton.setOnClickListener(v -> {
-            if (SyncEngine.savedMacs(this).isEmpty()) { fail("No saved watches. Use 'Scan / choose watch' first."); return; }
-            log("Launching one-time auto-sync task...");
+            if (SyncEngine.savedMacs(this).isEmpty()) { fail("Нет сохранённых часов. Сначала нажмите «Сканировать / выбрать часы»."); return; }
+            log("Запуск разовой задачи автосинка...");
             AutoSyncWorker.runOnceNow(this);
         });
         root.addView(testAutoButton);
 
         Button clearButton = new Button(this);
-        clearButton.setText("Clear saved watch list");
+        clearButton.setText("Очистить список часов");
         clearButton.setOnClickListener(v -> {
             SyncEngine.clearSavedMacs(this);
-            log("Saved watch list cleared");
+            log("Список сохранённых часов очищен");
         });
         root.addView(clearButton);
 
         CheckBox autoBox = new CheckBox(this);
-        autoBox.setText("Auto-sync every 12 hours");
+        autoBox.setText("Автосинк каждые 12 часов");
         autoBox.setChecked(getPrefs().getBoolean("autosync", false));
         autoBox.setOnCheckedChangeListener((b, on) -> {
             getPrefs().edit().putBoolean("autosync", on).apply();
             if (on) {
                 AutoSyncWorker.schedule(this, 12);
-                log("Auto-sync enabled: every 12 h (survives reboot)");
+                log("Автосинк включён: каждые 12 часов (переживает перезагрузку)");
             } else {
                 AutoSyncWorker.cancel(this);
-                log("Auto-sync disabled");
+                log("Автосинк выключен");
             }
         });
         root.addView(autoBox);
@@ -146,7 +146,7 @@ public class MainActivity extends Activity {
 
     private SharedPreferences getPrefs() { return getSharedPreferences("settings", MODE_PRIVATE); }
 
-    private void setStatus(String s) { runOnUiThread(() -> status.setText("Status: " + s)); }
+    private void setStatus(String s) { runOnUiThread(() -> status.setText("Статус: " + s)); }
 
     private void log(String s) {
         String line = String.format(Locale.US, "%tT  %s\n", new Date(), s);
@@ -154,31 +154,31 @@ public class MainActivity extends Activity {
     }
 
     private void fail(String msg) {
-        setStatus("ERROR");
-        log("ERROR: " + msg);
+        setStatus("ОШИБКА");
+        log("ОШИБКА: " + msg);
     }
 
     private void showDeviceChooser(Map<String, BluetoothDevice> found) {
-        if (found.isEmpty()) { fail("No BLE devices found. Try entering MAC manually."); return; }
+        if (found.isEmpty()) { fail("BLE-устройства не найдены. Попробуйте ввести MAC вручную."); return; }
         List<String> keys = new ArrayList<>(found.keySet());
         ArrayAdapter<String> arr = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, keys);
         new AlertDialog.Builder(this)
-                .setTitle("Choose watch (saved for auto-sync)")
+                .setTitle("Выберите часы (сохранятся для автосинка)")
                 .setAdapter(arr, (d, which) -> {
                     BluetoothDevice dev = found.get(keys.get(which));
                     String addr = SyncEngine.safeAddress(dev);
                     macInput.setText(addr);
                     getPrefs().edit().putString("last_mac", addr).apply();
                     SyncEngine.addSavedMac(this, addr);
-                    log("Selected and saved: " + keys.get(which));
-                    setStatus("Selected");
+                    log("Выбрано и сохранено: " + keys.get(which));
+                    setStatus("Выбрано");
                 })
                 .show();
     }
 
     private void syncNow() {
         String mac = macInput.getText().toString().trim().toUpperCase(Locale.US);
-        if (mac.length() != 17) { fail("Choose device or enter MAC first"); return; }
+        if (mac.length() != 17) { fail("Сначала выберите устройство или введите MAC"); return; }
         engine.clearQueue();
         engine.queueMac(mac);
         engine.startQueue(false);
@@ -186,10 +186,10 @@ public class MainActivity extends Activity {
 
     private void syncAll() {
         Set<String> macs = SyncEngine.savedMacs(this);
-        if (macs.isEmpty()) { fail("No saved watches. Use 'Scan / choose watch' first."); return; }
+        if (macs.isEmpty()) { fail("Нет сохранённых часов. Сначала нажмите «Сканировать / выбрать часы»."); return; }
         engine.clearQueue();
         for (String m : macs) engine.queueMac(m);
-        log("Syncing " + macs.size() + " watch(es)...");
+        log("Синхронизация " + macs.size() + " час(ов)...");
         engine.startQueue(true);
     }
 
@@ -210,5 +210,4 @@ public class MainActivity extends Activity {
     }
 
     private int dp(int v) { return (int)(v * getResources().getDisplayMetrics().density + 0.5f); }
-    }
-    
+            }
