@@ -3,8 +3,12 @@ package org.openpowerwatch.sync;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 
 import androidx.annotation.NonNull;
 import androidx.work.BackoffPolicy;
@@ -25,6 +29,7 @@ import java.util.concurrent.TimeUnit;
  * Background auto-sync.
  * Режим: синк на ближайший восход/закат (по SunTimes),
  * плюс страховочный периодический синк раз в 12 часов.
+ * После синка — вибрация-подтверждение (если включена галочкой).
  */
 public class AutoSyncWorker extends Worker {
 
@@ -39,13 +44,16 @@ public class AutoSyncWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        Result r;
         try {
-            return syncAll();
+            r = syncAll();
         } finally {
             // В любом случае (успех, ошибка, ретрай) — планируем следующий синк
             // на ближайший восход или закат. Цепочка замыкается сама.
             scheduleNextSunSync(getApplicationContext());
         }
+        buzz(getApplicationContext(), r == Result.success());
+        return r;
     }
 
     private Result syncAll() {
@@ -84,6 +92,27 @@ public class AutoSyncWorker extends Worker {
             return Result.retry();
         }
         return anyOk[0] ? Result.success() : Result.retry();
+    }
+
+    /** Вибрация-подтверждение: один короткий «бум» на успех, двойной — на неудачу. */
+    private static void buzz(Context context, boolean ok) {
+        boolean enabled = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                .getBoolean("vibrate_on_sync", true);
+        if (!enabled) return;
+
+        Vibrator vibrator;
+        if (Build.VERSION.SDK_INT >= 31) {
+            VibratorManager vm = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            if (vm == null) return;
+            vibrator = vm.getDefaultVibrator();
+        } else {
+            vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        }
+        if (vibrator == null || !vibrator.hasVibrator()) return;
+
+        long[] pattern = ok ? new long[]{0, 120}              // один «бум» — успех
+                            : new long[]{0, 120, 150, 120};   // «бум-бум» — неудача
+        vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1));
     }
 
     /** Ставит одноразовый синк на ближайший восход или закат. */
