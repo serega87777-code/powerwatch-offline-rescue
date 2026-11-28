@@ -45,7 +45,8 @@ public class SyncEngine {
     public interface Listener {
         void onStatus(String s);
         void onLog(String s);
-        void onSyncResult(boolean anyOk);
+        /** Итог всей очереди: true = синхронизировались ВСЕ часы из списка. */
+        void onSyncResult(boolean allOk);
         void onScanFinished(Map<String, BluetoothDevice> found);
     }
 
@@ -255,14 +256,21 @@ public class SyncEngine {
         });
     }
 
+    /**
+     * Итог всей очереди. Успех (allOk) — только если синхронизировались ВСЕ
+     * часы: okCount > 0 и ни одной ошибки. Частичный результат считается неудачей,
+     * чтобы воркер сделал ретрай и вибрация сыграла «бум-бум».
+     */
     private void finishQueue() {
         busy = false;
-        boolean anyOk = okCount > 0;
-        emitStatus(anyOk
-                ? "Sync OK (" + okCount + " ok, " + failCount + " fail)"
-                : "ERROR: no watch synced (" + failCount + " fail)");
+        boolean allOk = okCount > 0 && failCount == 0;
+        String status;
+        if (okCount == 0) status = "ERROR: no watch synced (" + failCount + " fail)";
+        else if (failCount > 0) status = "PARTIAL: " + okCount + " ok, " + failCount + " fail";
+        else status = "Sync OK (" + okCount + " ok, 0 fail)";
+        emitStatus(status);
         Listener l = listener;
-        if (l != null) l.onSyncResult(anyOk);
+        if (l != null) l.onSyncResult(allOk);
     }
 
     private void cancelWatchdog() {
@@ -433,5 +441,5 @@ public class SyncEngine {
         }
         return sb.toString();
     }
-    }
-        
+            }
+            
